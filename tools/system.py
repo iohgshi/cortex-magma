@@ -12,7 +12,7 @@ from fastmcp import Context
 from fastmcp.server.dependencies import get_http_request
 from pydantic import Field
 
-logger = logging.getLogger("cortex-magma.task")
+logger = logging.getLogger("cortex-magma.system")
 
 
 def _client_info() -> str:
@@ -79,44 +79,45 @@ def _query_disk() -> dict:
     }
 
 
-__NAME = "run_task"
-__DESCRIPTION = '''查询系统当前信息、CPU、内存与磁盘:
-* 每完成一步(当前信息、CPU、内存、磁盘)通过 MCP progress 通知上报 25% 进度,完成后返回全部查询数据。
+__NAME = "query_system_info"
+__DESCRIPTION = '''查询 magma 系统的信息、CPU、内存与磁盘使用情况:
+* 分四步执行(当前信息 → CPU → 内存 → 磁盘),每步完成通过 MCP progress 通知上报进度(25%/50%/75%/100%),全部完成后返回汇总数据。
+* CPU 使用率需阻塞采样 1 秒,整体约需 7 秒。
 '''
-async def run(task_name: Annotated[str, Field(description="任务名称,仅用于展示")] = "模拟任务",
+async def run(query_name: Annotated[str, Field(description="查询名称,仅用于展示")] = "系统信息查询",
     ctx: Context = None
 ) -> dict:
-    task_id = uuid.uuid4().hex[:8]
-    logger.info("run_task 被调用: 调用方=%s, task_name=%r, task_id=%s", _client_info(), task_name, task_id)
+    query_id = uuid.uuid4().hex[:8]
+    logger.info("query_system_info 被调用: 调用方=%s, query_name=%r, query_id=%s", _client_info(), query_name, query_id)
 
     started = time.monotonic()
 
     # 第一步:查当前信息
     current_info = _query_current_info()
     await ctx.report_progress(25, 100)  # 当前信息查完:进度 25%
-    logger.info("任务 %s(%s)当前信息查询完成: %s", task_name, task_id, current_info)
+    logger.info("查询 %s(%s)当前信息查询完成: %s", query_name, query_id, current_info)
 
     # 第二步:查 CPU(cpu_percent(interval=1) 需阻塞采样 1 秒,放线程池避免卡住事件循环)
     cpu = await asyncio.to_thread(_query_cpu)
     await ctx.report_progress(50, 100)  # CPU 查完:进度 50%
-    logger.info("任务 %s(%s)CPU 查询完成: %s", task_name, task_id, cpu)
+    logger.info("查询 %s(%s)CPU 查询完成: %s", query_name, query_id, cpu)
 
     # 第三步:查内存(含模拟耗时,同样放线程池,否则 sleep 会卡住事件循环、进度通知发不出去)
     memory = await asyncio.to_thread(_query_memory)
     await ctx.report_progress(75, 100)  # 内存查完:进度 75%
-    logger.info("任务 %s(%s)内存查询完成: %s", task_name, task_id, memory)
+    logger.info("查询 %s(%s)内存查询完成: %s", query_name, query_id, memory)
 
     # 第四步:查磁盘(根分区,同上放线程池)
     disk = await asyncio.to_thread(_query_disk)
     await ctx.report_progress(100, 100)  # 磁盘查完:进度 100%
-    logger.info("任务 %s(%s)磁盘查询完成: %s", task_name, task_id, disk)
+    logger.info("查询 %s(%s)磁盘查询完成: %s", query_name, query_id, disk)
 
     elapsed = time.monotonic() - started
-    logger.info("任务 %s(%s)执行完成,耗时 %.1f 秒", task_name, task_id, elapsed)
+    logger.info("查询 %s(%s)执行完成,耗时 %.1f 秒", query_name, query_id, elapsed)
 
     return {
-        "task_id": task_id,
-        "task_name": task_name,
+        "query_id": query_id,
+        "query_name": query_name,
         "elapsed_seconds": round(elapsed, 1),
         "current_info": current_info,
         "cpu": cpu,
@@ -129,8 +130,8 @@ async def run(task_name: Annotated[str, Field(description="任务名称,仅用�
     name=__NAME,
     description=__DESCRIPTION,
 )
-async def run_task(
-    task_name: Annotated[str, Field(description="任务名称,仅用于展示")] = "模拟任务",
+async def query_system_info(
+    query_name: Annotated[str, Field(description="查询名称,仅用于展示")] = "系统信息查询",
     ctx: Context = None,
 ) -> dict:
-    return await run(task_name, ctx)
+    return await run(query_name, ctx)
