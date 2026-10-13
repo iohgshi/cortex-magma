@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# IDE
+.idea/
+.vscode/
+*.iml
+__pypackages__/
