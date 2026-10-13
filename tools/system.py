@@ -7,8 +7,7 @@ from datetime import datetime
 from typing import Annotated
 
 import psutil
-from app import mcp
-from fastmcp import Context
+from fastmcp import Context, FastMCP
 from fastmcp.server.dependencies import get_http_request
 from pydantic import Field
 
@@ -126,12 +125,16 @@ async def run(query_name: Annotated[str, Field(description="查询名称,仅用�
     }
 
 
-@mcp.tool(
-    name=__NAME,
-    description=__DESCRIPTION,
-)
 async def query_system_info(
     query_name: Annotated[str, Field(description="查询名称,仅用于展示")] = "系统信息查询",
     ctx: Context = None,
 ) -> dict:
     return await run(query_name, ctx)
+
+
+def register(mcp: FastMCP) -> None:
+    mcp.tool(
+        query_system_info,
+        name=__NAME,
+        description=__DESCRIPTION,
+    )

@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated
 
-from app import mcp
+from fastmcp import FastMCP
 from pydantic import Field
 
 logger = logging.getLogger("cortex-magma.greet")
@@ -16,10 +16,6 @@ GREET_USER_DESCRIPTION = '''生成一句问候语。当用户想打招呼、或�
 返回示例:name="大哥" → 返回 "我是cortex-magma"'''
 
 
-@mcp.tool(
-    name="greet_user",
-    description=GREET_USER_DESCRIPTION,
-)
 def greet(
     name: Annotated[str, Field(description="要问候的人的名字")],
 ) -> str:
@@ -28,3 +24,11 @@ def greet(
     logger.info("greet_user 被调用: name=%r", name)
 
     return f"我是cortex-magma"
+
+
+def register(mcp: FastMCP) -> None:
+    mcp.tool(
+        greet,
+        name="greet_user",
+        description=GREET_USER_DESCRIPTION,
+    )

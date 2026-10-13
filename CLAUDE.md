@@ -13,17 +13,18 @@ uv sync                      # install dependencies from uv.lock
 uv run server.py             # start the MCP server (HTTP transport, 0.0.0.0:8000)
 uv run client.py             # smoke-test client — must be run with the server already up
 uv add <package>             # add a dependency (updates pyproject.toml and uv.lock)
+uv run pytest               # run the test suite (tests/, pytest config in pyproject.toml)
 ```
 
-There is no test suite or linter configured.
+There is no linter configured.
 
 ## Architecture
 
-Tool registration happens at import time via decorators on a shared instance:
+Each tool module owns its registration explicitly; nothing registers as an import side effect:
 
-- `app.py` — the shared `FastMCP("cortex-magma")` instance. Every tool module imports `mcp` from here (this avoids circular imports through the entry point).
-- `tools/` — one module per tool domain (e.g. `tools/greet.py`). `tools/__init__.py` imports each module to trigger registration; when adding a new tool module, add a line there. Long tool descriptions live in module-level constants (`*_DESCRIPTION`) using triple-quoted strings.
-- `server.py` — entry point: imports `tools` (side-effect registration), then runs HTTP transport (`transport="http"`) on port 8000 (client endpoint: `http://127.0.0.1:8000/mcp`).
+- `server.py` — entry point and sole owner of the `FastMCP("cortex-magma")` instance. It calls `tools.register(mcp)`, then runs HTTP transport (`transport="http"`) on port 8000 (client endpoint: `http://127.0.0.1:8000/mcp`). Do not put `mcp.run()` at module level — other modules import `mcp` from here.
+- `tools/` — one module per tool domain (e.g. `tools/greet.py`). Every module exposes plain functions plus a `register(mcp)` that calls `mcp.tool(fn, name=..., description=...)`. Tool functions must stay importable and callable on their own, without going through a registered instance. Long tool descriptions live in module-level constants (`*_DESCRIPTION`) using triple-quoted strings.
+- `tools/__init__.py` — aggregates the per-module `register` functions. When adding a new tool module, add it to `_MODULES` and have it expose `register(mcp)`.
 - `client.py` — a throwaway-style test harness that connects to the running server, lists tools with their input schemas, and calls them to verify behavior. When adding or changing a tool, update the calls here to match.
 
 ## Conventions

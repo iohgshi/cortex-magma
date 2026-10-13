@@ -10,8 +10,7 @@ import time
 import uuid
 from typing import Annotated
 
-from app import mcp
-from fastmcp import Context
+from fastmcp import Context, FastMCP
 from pydantic import Field
 
 logger = logging.getLogger("cortex-magma.job")
@@ -61,14 +60,18 @@ def _client_info() -> str:
     return f"{client.host}:{client.port}"
 
 
-@mcp.tool(
-    name=__NAME,
-    description=__DESCRIPTION,
-    task=True,  # 标记为可后台执行:客户端可提交为任务并轮询状态
-)
 async def run_background_job(
     job_name: Annotated[str, Field(description="任务名称,仅用于展示")] = "模拟任务",
     duration_seconds: Annotated[int, Field(description="任务总时长(秒)", ge=1, le=60)] = 5,
     ctx: Context = None,
 ) -> dict:
     return await run(job_name, duration_seconds, ctx)
+
+
+def register(mcp: FastMCP) -> None:
+    mcp.tool(
+        run_background_job,
+        name=__NAME,
+        description=__DESCRIPTION,
+        task=True,  # 标记为可后台执行:客户端可提交为任务并轮询状态
+    )
