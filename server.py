@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -10,6 +11,8 @@ import tools
 
 
 DEFAULT_EXECUTOR_MAX_WORKERS = 64
+
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
@@ -25,7 +28,4 @@ tools.register(mcp)
 
 
 if __name__ == "__main__":
-    import logging
-
-    logging.basicConfig(level=logging.INFO)
     mcp.run(transport="http", host="0.0.0.0", port=8000)
