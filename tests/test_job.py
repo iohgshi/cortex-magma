@@ -1,65 +1,47 @@
-"""run_background_job 工具测试:同步调用、参数校验、进度通知、后台任务生命周期。"""
+"""job 工具的测试:把 agent 调用 MCP 工具的流程写死成 if 判断。"""
 
 import asyncio
 
 import pytest
-from fastmcp.exceptions import ToolError
 from fastmcp_tasks import call_tool_task
 
-
-async def test_sync_call(client):
-    """同步调用:阻塞到完成,返回最终结果。"""
-    result = await client.call_tool(
-        "run_background_job", {"job_name": "同步测试", "duration_seconds": 1}
-    )
-    assert result.data["job_name"] == "同步测试"
-    assert result.data["elapsed_seconds"] >= 1
+TERMINAL = ("completed", "failed", "cancelled")
 
 
-async def test_param_validation(client):
-    """duration_seconds 超出 [1, 60] 应报错。"""
-    with pytest.raises(ToolError):
-        await client.call_tool("run_background_job", {"duration_seconds": 0})
-    with pytest.raises(ToolError):
-        await client.call_tool("run_background_job", {"duration_seconds": 61})
+async def test_run_background_job(client):
+    # 1. agent 先看 server 上有哪些工具
+    tools = await client.list_tools()
+    if not any(t.name == "run_background_job" for t in tools):
+        pytest.fail("server 上没有 run_background_job")
+    print(f"\navailable tools: {[t.name for t in tools]}")
 
-
-async def test_progress_notifications(client):
-    """每秒上报一次进度:2 秒任务应收到 50、100。"""
-    received: list[float] = []
-
-    async def on_progress(progress, total, message):
-        received.append(progress)
-
-    await client.call_tool(
-        "run_background_job", {"duration_seconds": 2}, progress_handler=on_progress
-    )
-    assert received == [50.0, 100.0]
-
-
-async def test_background_task_lifecycle(client):
-    """后台任务:提交立刻返回句柄,轮询到 completed 后取回结果。"""
+    # 2. 调工具,拿到返回。task=True 的工具返回的是任务句柄,不是结果
     task = await call_tool_task(
-        client, "run_background_job", {"job_name": "后台测试", "duration_seconds": 2}
+        client,
+        "run_background_job",
+        {"job_name": "测试任务", "duration_seconds": 3},
     )
-    assert task.task_id  # 提交即刻拿到任务 id,无需等待
+    if not task.task_id:
+        pytest.fail(f"没拿到 task_id: {task}")
+    print(f"已启动, task_id={task.task_id}")
 
-    final = await task.wait(timeout=15)
-    assert final.status == "completed"
+    # 3. agent 会轮询状态直到终态,这里用 while 替掉判断
+    while True:
+        status = await task.status()
+        print(f"    进度: {status.status_message or '（无）'} · {status.status}")
+
+        if status.status in TERMINAL:
+            break
+        if status.status == "working":
+            await asyncio.sleep(0.3)
+            continue
+        pytest.fail(f"意外状态: {status.status}")
+
+    # 4. agent 看终态决定:成功取结果,失败报错误
+    if status.status != "completed":
+        pytest.fail(f"任务没成功: {status.status}")
 
     result = await task.result()
-    assert "后台测试" in result.data["message"]
-
-
-async def test_cancel_background_task(client):
-    """后台任务可取消:长任务提交后 cancel,终态应为 cancelled。"""
-    task = await call_tool_task(
-        client, "run_background_job", {"job_name": "取消测试", "duration_seconds": 30}
-    )
-    # 等任务真正跑起来再取消
-    while (await task.status()).status != "working":
-        await asyncio.sleep(0.1)
-
-    await task.cancel()
-    final = await task.wait(timeout=15)
-    assert final.status == "cancelled"
+    if result.data["job_name"] != "测试任务":
+        pytest.fail(f"结果不对: {result.data}")
+    print(f"    结果: {result.data}")

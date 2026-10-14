@@ -1,15 +1,18 @@
-"""共享夹具:内存直连的 MCP 客户端。
+"""全局 pytest 配置:只负责把客户端连到已经启动好的 server。
 
-无需启动服务进程,Client(mcp) 走内存传输,lifespan(线程池 + 任务扩展)照常生效。
+server 由你手动起(另开一个终端 `python server.py`),测试这边不起进程。
+地址默认 http://127.0.0.1:8000/mcp/ ,换端口用 MCP_URL 覆盖。
 """
+
+import os
 
 import pytest
 from fastmcp import Client
 
-from server import mcp
+MCP_URL = os.getenv("MCP_URL", "http://127.0.0.1:8000/mcp/")
 
 
 @pytest.fixture
 async def client():
-    async with Client(mcp) as c:
+    async with Client(MCP_URL) as c:
         yield c

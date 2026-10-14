@@ -11,6 +11,7 @@ import uuid
 from typing import Annotated
 
 from fastmcp import Context, FastMCP
+from fastmcp.utilities.tasks import TaskConfig
 from pydantic import Field
 
 logger = logging.getLogger("cortex-magma.job")
@@ -31,7 +32,10 @@ async def run(job_name: Annotated[str, Field(description="任务名称,仅用于
 
     for i in range(1, duration_seconds + 1):
         await asyncio.sleep(1)
-        await ctx.report_progress(round(i / duration_seconds * 100), 100)  # 每秒上报一次进度
+        await ctx.report_progress(
+            round(i / duration_seconds * 100), 100,
+            f"{job_name} 已完成 {i}/{duration_seconds} 秒",  # message:后台模式下经 tasks/get 的 status_message 暴露
+        )
         logger.info("后台任务 %s(%s)进度: %d/%ds", job_name, job_id, i, duration_seconds)
 
     elapsed = time.monotonic() - started
@@ -73,5 +77,5 @@ def register(mcp: FastMCP) -> None:
         run_background_job,
         name=__NAME,
         description=__DESCRIPTION,
-        task=True,  # 标记为可后台执行:客户端可提交为任务并轮询状态
+        task=TaskConfig(mode="required"),
     )

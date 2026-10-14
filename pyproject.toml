@@ -19,3 +19,4 @@ dev = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = "-s"   # 不捕获 stdout,测试里的 print 直接显示
