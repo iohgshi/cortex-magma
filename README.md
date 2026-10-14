@@ -30,6 +30,33 @@ cortex-magma        # 或 uv run cortex-magma(开发时)
 默认监听 `0.0.0.0:8000`,MCP 客户端接入地址为 `http://127.0.0.1:8000/mcp`。
 也支持 `uv run python -m cortex_magma.server`。
 
+## 在 pi 中接入
+
+`pi` 走 Streamable HTTP,所以用 `--url` 接入(server 需要已经在跑):
+
+```bash
+pi mcp add cortex-magma \
+  --url http://127.0.0.1:8000/mcp \
+  --description "系统信息与后台任务工具:query_system_info 查询本机 CPU/内存/磁盘;run_background_job 提交耗时后台任务并按秒回报进度;greet_user 探活"
+```
+
+`--description` 会被写进 pi 的 system prompt,模型靠它决定何时调用,所以要写清**每个工具做什么**,
+不要只写"生成问候语等工具"这种以偏概全的说法 —— 后两个工具就没被提及,模型基本不会去调。
+
+其他常用选项:
+
+| 选项 | 用途 |
+| --- | --- |
+| `-l` / `--local` | 写进项目的 `.pi/mcp.json` 而不是全局 `~/.pi/agent/mcp.json`,便于随仓库共享 |
+| `--exposure <mode>` | 工具暴露方式:`codemode`(默认)、`deferred`、`direct`、`hidden` |
+| `--header KEY=VALUE` | 给请求加 HTTP 头,可重复 |
+
+接完用 `pi mcp list` 确认状态和工具是否被正确识别:
+
+```bash
+pi mcp list
+```
+
 ## 测试
 
 测试是打真实 HTTP 的,所以需要先在另一个终端把 server 起起来:
