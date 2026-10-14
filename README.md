@@ -28,7 +28,7 @@ cortex-magma        # 或 uv run cortex-magma(开发时)
 ```
 
 默认监听 `0.0.0.0:8000`,MCP 客户端接入地址为 `http://127.0.0.1:8000/mcp`。
-也支持 `uv run python -m cortex_magma.server`。
+也支持 `uv run python -m cortex_magma`。
 
 ## 在 pi 中接入
 
