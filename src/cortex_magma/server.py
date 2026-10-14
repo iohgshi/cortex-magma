@@ -7,10 +7,12 @@ from contextlib import asynccontextmanager
 from fastmcp import FastMCP
 from fastmcp_tasks import TasksExtension
 
-import tools
+from . import tools
 
 
 DEFAULT_EXECUTOR_MAX_WORKERS = 64
+DEFAULT_HOST = "0.0.0.0"
+DEFAULT_PORT = 8000
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,5 +29,10 @@ mcp.add_extension(TasksExtension())  # 启用后台任务扩展(SEP-2663),默认
 tools.register(mcp)
 
 
+def main() -> None:
+    """命令行入口:装完包后直接 `cortex-magma` 启动。"""
+    mcp.run(transport="http", host=DEFAULT_HOST, port=DEFAULT_PORT)
+
+
 if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=8000)
+    main()

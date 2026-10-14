@@ -1,13 +1,23 @@
 [project]
 name = "cortex-magma"
 version = "0.1.0"
-description = "Add your description here"
+description = "一个基于 FastMCP 的 MCP server"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp[tasks]>=4.1.0",
     "psutil>=7.2.2",
 ]
+
+[project.scripts]
+cortex-magma = "cortex_magma.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cortex_magma"]
 
 [dependency-groups]
 dev = [
